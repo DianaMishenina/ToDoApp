@@ -1,9 +1,17 @@
 plugins {
     id 'java'
+    id 'maven-publish'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group = 'org.example'
-version = '1.0-SNAPSHOT'
+version = findProperty('version') ?: '0.1.0'
+
+sourceCompatibility = '23'
+targetCompatibility = '23'
+
+mainClassName = 'org.example.ToDoApp'
 
 repositories {
     mavenCentral()
@@ -17,4 +25,60 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+shadowJar {
+    archiveBaseName.set("todo-app")
+    archiveClassifier.set('')
+    archiveVersion.set(project.version.toString())
+    mergeServiceFiles()
+}
+
+tasks.jar {
+    enabled = false
+}
+
+tasks.named('distZip') {
+    dependsOn tasks.named('shadowJar')
+}
+
+tasks.named('distTar') {
+    dependsOn tasks.named('shadowJar')
+}
+
+tasks.named('startScripts') {
+    dependsOn tasks.named('shadowJar')
+}
+
+tasks.named('startShadowScripts') {
+    dependsOn tasks.named('jar')
+}
+
+tasks.build {
+    dependsOn shadowJar
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId = 'org.example'
+            artifactId = 'todo-app'
+            version = project.version
+
+            artifact(tasks.shadowJar) {
+                classifier = null
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/DianaMishenina/ToDoApp")
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
 }
